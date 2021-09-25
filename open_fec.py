@@ -31,72 +31,93 @@ class OpenFEC:
         response = requests.get(url)
         return response.json()
 
-    def candidate(self, candidate_id: str, **kwargs) -> dict:
+    def candidate(
+        self, candidate_id: str, history: bool = False, totals: bool = False, **kwargs
+    ) -> List[dict]:
         """Find detailed information about a particular candidate.
 
-        Use the candidate_id to find the most recent information about that candidate.
-        See https://api.open.fec.gov/developers/#/candidate/get_candidate__candidate_id__
-        for detailed query parameter info.
+        If `history` & `totals` are both False, see the following for query parameters:
+        https://api.open.fec.gov/developers/#/candidate/get_candidate__candidate_id__.
+        If `history` is True and `cycle` is passed, see:
+        https://api.open.fec.gov/developers/#/candidate/get_candidate__candidate_id__history__cycle__.
+        If `history` is True and `cycle` is not passed, see:
+        https://api.open.fec.gov/developers/#/candidate/get_candidate__candidate_id__history_.
+        If `totals` is True, see:
+        https://api.open.fec.gov/developers/#/candidate/get_candidate__candidate_id__totals_.
 
         Parameters
         ----------
         candidate_id : str
-            A unique identifier assigned to each candidate registered with the FEC. If a
-            person runs for several offices, that person will have separate candidate
+            A unique identifier assigned to each candidate registered with the FEC. If
+            a person runs for several offices, that person will have separate candidate
             IDs for each office.
+        history : bool, optional
+            Find out a candidate's characteristics over time. This is particularly
+            useful if the candidate runs for the same office in different districts or
+            you want to know more about a candidate's previous races. This information
+            is organized by candidate_id, so it won't help you find a candidate who ran
+            for different offices over time; candidates get a new ID for each office.
+            Pass the optional kwarg `cycle` to get info about a particular cycle. By
+            default False.
+        totals : bool, optional
+            This endpoint provides information about a committee's Form 3, Form 3X, or
+            Form 3P financial reports, which are aggregated by two-year period. We refer
+            to two-year periods as a cycle. The cycle is named after the even-numbered
+            year and includes the year before it. To obtain totals from 2013 and 2014,
+            you would use 2014. In odd-numbered years, the current cycle is the next
+            year — for example, in 2015, the current cycle is 2016. For presidential and
+            Senate candidates, multiple two-year cycles exist between elections. By
+            default False.
         **kwargs : dict
-            Additional query parameters. See API docs for more info.
-
-        Returns
-        -------
-        result: dict
-            Dict of fields representing a single candidate.
-        """
-        response = self._get_request(f"candidate/{candidate_id}", **kwargs)
-        return response["results"][0]
-
-    def candidate_history(
-        self, candidate_id: str, cycle: Optional[int] = None, **kwargs
-    ) -> List[dict]:
-        """Find out a candidate's characteristics over time.
-
-        This is particularly useful if the candidate runs for the same office in
-        different districts or you want to know more about a candidate's previous races.
-
-        This information is organized by candidate_id, so it won't help you find a
-        candidate who ran for different offices over time; candidates get a new ID for
-        each office.
-
-        See https://api.open.fec.gov/developers/#/candidate/get_candidate__candidate_id__history_
-        for info about using without `cycle` parameter.
-
-        See https://api.open.fec.gov/developers/#/candidate/get_candidate__candidate_id__history__cycle__
-        for info about using with `cycle` parameter.
-
-
-        Parameters
-        ----------
-        candidate_id : str
-            A unique identifier assigned to each candidate registered with the FEC. If a
-            person runs for several offices, that person will have separate candidate
-            IDs for each office.
-        cycle : Optional[int], optional
-            Two-year election cycle in which a candidate runs for office. Calculated
-            from Form 2. The cycle begins with an odd year and is named for its ending,
-            even year. This cycle follows the traditional house election cycle and
-            subdivides the presidential and Senate elections into comparable two-year
-            blocks. To retrieve data for the entire four years of a presidential term or
-            six years of a senatorial term, you will need the election_full flag. By
-            default None
+            Query parameters.
 
         Returns
         -------
         results : List[dict]
-            Candidate history.
+            Results about a particular candidate.
+
+        Raises
+        ------
+        ValueError
+            If user passes both `history` & `totals` as True.
         """
-        endpoint = f"candidate/{candidate_id}/history"
-        if cycle is not None:
-            endpoint = f"{endpoint}/{cycle}"
+        endpoint = f"candidate/{candidate_id}"
+
+        if history and totals:
+            raise ValueError("`history` and `totals` cannot both be True.")
+        elif history:
+            endpoint = f"{endpoint}/history"
+            cycle = kwargs.pop("cycle", False)
+            if cycle:
+                endpoint = f"{endpoint}/{cycle}"
+        elif totals:
+            endpoint = f"{endpoint}/totals"
+
+        return self._get_request(endpoint, **kwargs)["results"]
+
+    def candidates(
+        self,
+        search: bool = False,
+        totals: bool = False,
+        by_office: bool = False,
+        by_party: bool = False,
+        **kwargs,
+    ) -> List[dict]:
+        endpoint = "candidates"
+        if search:
+            if any(totals, by_office, by_party):
+                raise ValueError(
+                    "If `search` is True, all of {`totals`, `by_office`, `by_party`} "
+                    "must be False"
+                )
+            endpoint = f"{endpoint}/search"
+        elif totals:
+            endpoint = f"{endpoint}/totals"
+            if by_office:
+                endpoint = f"{endpoint}/by_office"
+                if by_party:
+                    endpoint = f"{endpoint}/by_party"
+
         return self._get_request(endpoint, **kwargs)["results"]
 
     def search(self, q: Union[str, List[str]], category: str) -> List[Dict[str, str]]:

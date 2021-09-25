@@ -130,3 +130,6 @@ dmypy.json
 
 # VS Code Project
 .vscode
+
+# My testing file
+mytesting.py
