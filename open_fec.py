@@ -29,6 +29,7 @@ class OpenFEC:
         query = urllib.parse.urlencode(kwargs, doseq=True, quote_via=urllib.parse.quote)
         url = f"{self.BASE_URL}{endpoint.strip('/')}/?{query}"
         response = requests.get(url)
+        response.raise_for_status()
         return response.json()
 
     def candidate(
@@ -105,7 +106,7 @@ class OpenFEC:
     ) -> List[dict]:
         endpoint = "candidates"
         if search:
-            if any(totals, by_office, by_party):
+            if totals or by_office or by_party:
                 raise ValueError(
                     "If `search` is True, all of {`totals`, `by_office`, `by_party`} "
                     "must be False"
