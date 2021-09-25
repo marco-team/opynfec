@@ -3,7 +3,7 @@ import urllib.parse
 import requests
 
 
-class FECAPIWrapper:
+class OpenFEC:
     BASE_URL = "https://api.open.fec.gov/v1/"
 
     def __init__(self, api_key: str):
