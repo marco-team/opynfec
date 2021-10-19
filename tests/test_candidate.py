@@ -1,10 +1,10 @@
 import unittest
-from open_fec import OpenFEC
+from opyn_fec import OpynFEC
 
 
 class TestCandidate(unittest.TestCase):
     def setUp(self) -> None:
-        self.api_wrapper = OpenFEC(api_key="DEMO_KEY")
+        self.api_wrapper = OpynFEC(api_key="DEMO_KEY")
 
     def test_candidate_vanilla(self):
         res = self.api_wrapper.candidate("S0CT00177")
@@ -57,7 +57,7 @@ class TestCandidate(unittest.TestCase):
 
 class TestCandidates(unittest.TestCase):
     def setUp(self) -> None:
-        self.api_wrapper = OpenFEC(api_key="DEMO_KEY")
+        self.api_wrapper = OpynFEC(api_key="DEMO_KEY")
 
     def test_candidates(self):
         res = self.api_wrapper.candidates(
