@@ -1,10 +1,10 @@
 import unittest
-from open_fec import OpenFEC
+from opyn_fec import OpynFEC
 
 
 class TestSearch(unittest.TestCase):
     def setUp(self) -> None:
-        self.api_wrapper = OpenFEC(api_key="DEMO_KEY")
+        self.api_wrapper = OpynFEC(api_key="DEMO_KEY")
 
     def test_candidate(self):
         res = self.api_wrapper.search("Richard Blumenthal", "candidates")
