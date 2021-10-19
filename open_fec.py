@@ -43,7 +43,7 @@ class OpenFEC:
         page = 1
         while page <= n_pages:
             use_kwargs["page"] = page
-            response = self._get_request(endpoint=endpoint, **kwargs)
+            response = self._get_request(endpoint=endpoint, **use_kwargs)
             all_results.extend(response["results"])
             n_pages = response["pagination"]["pages"]
             page += 1
