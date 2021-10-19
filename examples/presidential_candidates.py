@@ -2,12 +2,12 @@
 This example shows how to get the names of the 2020 presidential candidates.
 """
 
-from opynfec import OpenFEC
+from opynfec import OpynFEC
 
 
 def main():
     # Replace with your personal API key for higher rate limits
-    api = OpenFEC(api_key="DEMO_KEY")
+    api = OpynFEC(api_key="DEMO_KEY")
 
     # Here is the call to get all 2020 presidential candidates
     pres_candidates_2020 = api.candidates(  # Use the `candidates` method
