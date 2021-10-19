@@ -1,6 +1,4 @@
 import unittest
-
-from requests import api
 from open_fec import OpenFEC
 
 
