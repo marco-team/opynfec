@@ -40,13 +40,13 @@ class OpynFEC:
         result_limit: Optional[int] = None,
         **kwargs,
     ) -> dict:
-        # Use max per_page unless specified otherwise
-        use_kwargs = {"per_page": 100}
-        use_kwargs.update(kwargs)
-
         # Reform limits for comparison
         call_limit = math.inf if call_limit is None else call_limit
         result_limit = math.inf if result_limit is None else result_limit
+
+        # Use max per_page unless specified otherwise
+        use_kwargs = {"per_page": min(100, result_limit)}
+        use_kwargs.update(kwargs)
 
         # Loop over pages
         all_results = []
@@ -60,6 +60,8 @@ class OpynFEC:
             if len(all_results) >= result_limit:
                 all_results = all_results[:result_limit]
                 break
+            elif len(all_results) + use_kwargs["per_page"] >= result_limit:
+                use_kwargs["per_page"] = result_limit - len(all_results)
             page += 1
 
         return all_results
@@ -304,7 +306,7 @@ class OpynFEC:
     ) -> List[dict]:
         endpoint = "schedules/schedule_a"
 
-        mutually_exclusive_switches = (
+        mutually_exclusive = (
             by_employer,
             by_occupation,
             by_size,
@@ -313,8 +315,8 @@ class OpynFEC:
             efile,
             sub_id is not None,
         )
-        if sum(mutually_exclusive_switches) > 1:
-            raise ValueError("Mutually exclusive switches requested")
+        if sum(mutually_exclusive) > 1:
+            raise ValueError("Mutually exclusive endpoints requested")
 
         if by_employer:
             endpoint = f"{endpoint}/by_employer"
@@ -334,6 +336,43 @@ class OpynFEC:
                 endpoint = f"{endpoint}/totals"
         elif by_zip:
             endpoint = f"{endpoint}/by_zip"
+        elif efile:
+            endpoint = f"{endpoint}/efile"
+        elif sub_id is not None:
+            endpoint = f"{endpoint}/{sub_id}"
+
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
+
+    def disbursements(
+        self,
+        by_purpose: bool = False,
+        by_recipient: bool = False,
+        by_recipient_id: bool = False,
+        efile: bool = False,
+        sub_id: Optional[str] = None,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
+    ) -> List[dict]:
+        mutually_exclusive = (
+            by_purpose,
+            by_recipient,
+            by_recipient_id,
+            efile,
+            sub_id is not None,
+        )
+        if sum(mutually_exclusive) > 1:
+            raise ValueError("Mutually exclusive endpoints requested")
+
+        endpoint = "schedules/schedule_b"
+        if by_purpose:
+            endpoint = f"{endpoint}/by_purpose"
+        elif by_recipient:
+            endpoint = f"{endpoint}/by_recipient"
+        elif by_recipient_id:
+            endpoint = f"{endpoint}/by_recipient_id"
         elif efile:
             endpoint = f"{endpoint}/efile"
         elif sub_id is not None:
