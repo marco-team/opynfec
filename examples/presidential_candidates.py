@@ -2,7 +2,7 @@
 This example shows how to get the names of the 2020 presidential candidates.
 """
 
-from opynfec import OpynFEC
+from . import OpynFEC
 
 
 def main():
