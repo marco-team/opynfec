@@ -33,25 +33,47 @@ class OpynFEC:
         response.raise_for_status()
         return response.json()
 
-    def _get_unpaginated_request(self, endpoint: str, **kwargs) -> dict:
+    def _get_unpaginated_request(
+        self,
+        endpoint: str,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
+    ) -> dict:
+        # Reform limits for comparison
+        call_limit = math.inf if call_limit is None else call_limit
+        result_limit = math.inf if result_limit is None else result_limit
+
         # Use max per_page unless specified otherwise
-        use_kwargs = {"per_page": 100}
+        use_kwargs = {"per_page": min(100, result_limit)}
         use_kwargs.update(kwargs)
 
+        # Loop over pages
         all_results = []
         n_pages = math.inf
         page = 1
-        while page <= n_pages:
+        while page <= min(n_pages, call_limit):
             use_kwargs["page"] = page
             response = self._get_request(endpoint=endpoint, **use_kwargs)
             all_results.extend(response["results"])
             n_pages = response["pagination"]["pages"]
+            if len(all_results) >= result_limit:
+                all_results = all_results[:result_limit]
+                break
+            elif len(all_results) + use_kwargs["per_page"] >= result_limit:
+                use_kwargs["per_page"] = result_limit - len(all_results)
             page += 1
 
         return all_results
 
     def candidate(
-        self, candidate_id: str, history: bool = False, totals: bool = False, **kwargs
+        self,
+        candidate_id: str,
+        history: bool = False,
+        totals: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
     ) -> List[dict]:
         """Find detailed information about a particular candidate.
 
@@ -112,7 +134,9 @@ class OpynFEC:
         elif totals:
             endpoint = f"{endpoint}/totals"
 
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def candidates(
         self,
@@ -120,6 +144,8 @@ class OpynFEC:
         totals: bool = False,
         by_office: bool = False,
         by_party: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
         **kwargs,
     ) -> List[dict]:
         """Fetch basic information about candidates, and use parameters to filter
@@ -189,10 +215,17 @@ class OpynFEC:
                 if by_party:
                     endpoint = f"{endpoint}/by_party"
 
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def committee(
-        self, committee_id: str, history: bool = False, **kwargs
+        self,
+        committee_id: str,
+        history: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
     ) -> List[dict]:
         endpoint = f"committee/{committee_id}"
         if history:
@@ -200,21 +233,30 @@ class OpynFEC:
             cycle = kwargs.pop("cycle", False)
             if cycle:
                 endpoint = f"{endpoint}/{cycle}"
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def committees(
-        self, candidate_id: Optional[str] = None, history: bool = False, **kwargs
+        self,
+        candidate_id: Optional[str] = None,
+        history: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
     ) -> List[dict]:
         if candidate_id is None:
             endpoint = "committees"
         else:
-            endpoint = f"candidate/{candidate_id}"
+            endpoint = f"candidate/{candidate_id}/committees"
             if history:
                 endpoint = f"{endpoint}/history"
                 cycle = kwargs.pop("cycle", False)
                 if cycle:
                     endpoint = f"{endpoint}/{cycle}"
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def search(self, q: Union[str, List[str]], category: str) -> List[Dict[str, str]]:
         """Search for candidates or committees by name.
@@ -246,3 +288,96 @@ class OpynFEC:
                 f"{category!r}"
             )
         return self._get_request(f"names/{category}", q=q)["results"]
+
+    def receipts(
+        self,
+        by_employer: bool = False,
+        by_occupation: bool = False,
+        by_size: bool = False,
+        by_candidate: bool = False,
+        by_state: bool = False,
+        totals: bool = False,
+        by_zip: bool = False,
+        efile: bool = False,
+        sub_id: Optional[str] = None,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
+    ) -> List[dict]:
+        endpoint = "schedules/schedule_a"
+
+        mutually_exclusive = (
+            by_employer,
+            by_occupation,
+            by_size,
+            by_state,
+            by_zip,
+            efile,
+            sub_id is not None,
+        )
+        if sum(mutually_exclusive) > 1:
+            raise ValueError("Mutually exclusive endpoints requested")
+
+        if by_employer:
+            endpoint = f"{endpoint}/by_employer"
+        elif by_occupation:
+            endpoint = f"{endpoint}/by_occupation"
+        elif by_size:
+            endpoint = f"{endpoint}/by_size"
+            if by_candidate:
+                endpoint = f"{endpoint}/by_candidate"
+        elif by_state:
+            endpoint = f"{endpoint}/by_state"
+            if by_candidate:
+                endpoint = f"{endpoint}/by_candidate"
+                if totals:
+                    endpoint = f"{endpoint}/totals"
+            elif totals:
+                endpoint = f"{endpoint}/totals"
+        elif by_zip:
+            endpoint = f"{endpoint}/by_zip"
+        elif efile:
+            endpoint = f"{endpoint}/efile"
+        elif sub_id is not None:
+            endpoint = f"{endpoint}/{sub_id}"
+
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
+
+    def disbursements(
+        self,
+        by_purpose: bool = False,
+        by_recipient: bool = False,
+        by_recipient_id: bool = False,
+        efile: bool = False,
+        sub_id: Optional[str] = None,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
+    ) -> List[dict]:
+        mutually_exclusive = (
+            by_purpose,
+            by_recipient,
+            by_recipient_id,
+            efile,
+            sub_id is not None,
+        )
+        if sum(mutually_exclusive) > 1:
+            raise ValueError("Mutually exclusive endpoints requested")
+
+        endpoint = "schedules/schedule_b"
+        if by_purpose:
+            endpoint = f"{endpoint}/by_purpose"
+        elif by_recipient:
+            endpoint = f"{endpoint}/by_recipient"
+        elif by_recipient_id:
+            endpoint = f"{endpoint}/by_recipient_id"
+        elif efile:
+            endpoint = f"{endpoint}/efile"
+        elif sub_id is not None:
+            endpoint = f"{endpoint}/{sub_id}"
+
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
