@@ -208,7 +208,7 @@ class OpynFEC:
         if candidate_id is None:
             endpoint = "committees"
         else:
-            endpoint = f"candidate/{candidate_id}"
+            endpoint = f"candidate/{candidate_id}/committees"
             if history:
                 endpoint = f"{endpoint}/history"
                 cycle = kwargs.pop("cycle", False)
@@ -246,3 +246,54 @@ class OpynFEC:
                 f"{category!r}"
             )
         return self._get_request(f"names/{category}", q=q)["results"]
+
+    def receipts(
+        self,
+        by_employer: bool = False,
+        by_occupation: bool = False,
+        by_size: bool = False,
+        by_candidate: bool = False,
+        by_state: bool = False,
+        totals: bool = False,
+        by_zip: bool = False,
+        efile: bool = False,
+        sub_id: Optional[str] = None,
+    ) -> List[dict]:
+        endpoint = "schedules/schedule_a"
+
+        mutually_exclusive_switches = (
+            by_employer,
+            by_occupation,
+            by_size,
+            by_state,
+            by_zip,
+            efile,
+            sub_id is not None,
+        )
+        if sum(mutually_exclusive_switches) > 1:
+            raise ValueError("Mutually exclusive switches requested")
+
+        if by_employer:
+            endpoint = f"{endpoint}/by_employer"
+        elif by_occupation:
+            endpoint = f"{endpoint}/by_occupation"
+        elif by_size:
+            endpoint = f"{endpoint}/by_size"
+            if by_candidate:
+                endpoint = f"{endpoint}/by_candidate"
+        elif by_state:
+            endpoint = f"{endpoint}/by_state"
+            if by_candidate:
+                endpoint = f"{endpoint}/by_candidate"
+                if totals:
+                    endpoint = f"{endpoint}/totals"
+            elif totals:
+                endpoint = f"{endpoint}/totals"
+        elif by_zip:
+            endpoint = f"{endpoint}/by_zip"
+        elif efile:
+            endpoint = f"{endpoint}/efile"
+        elif sub_id is not None:
+            endpoint = f"{endpoint}/{sub_id}"
+
+        # TODO: Finish this up
