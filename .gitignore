@@ -133,3 +133,6 @@ dmypy.json
 
 # My testing file
 mytesting.py
+
+# Sample data
+sample_data/
