@@ -33,25 +33,45 @@ class OpynFEC:
         response.raise_for_status()
         return response.json()
 
-    def _get_unpaginated_request(self, endpoint: str, **kwargs) -> dict:
+    def _get_unpaginated_request(
+        self,
+        endpoint: str,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
+    ) -> dict:
         # Use max per_page unless specified otherwise
         use_kwargs = {"per_page": 100}
         use_kwargs.update(kwargs)
 
+        # Reform limits for comparison
+        call_limit = math.inf if call_limit is None else call_limit
+        result_limit = math.inf if result_limit is None else result_limit
+
+        # Loop over pages
         all_results = []
         n_pages = math.inf
         page = 1
-        while page <= n_pages:
+        while page <= min(n_pages, call_limit):
             use_kwargs["page"] = page
             response = self._get_request(endpoint=endpoint, **use_kwargs)
             all_results.extend(response["results"])
             n_pages = response["pagination"]["pages"]
+            if len(all_results) >= result_limit:
+                all_results = all_results[:result_limit]
+                break
             page += 1
 
         return all_results
 
     def candidate(
-        self, candidate_id: str, history: bool = False, totals: bool = False, **kwargs
+        self,
+        candidate_id: str,
+        history: bool = False,
+        totals: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
     ) -> List[dict]:
         """Find detailed information about a particular candidate.
 
@@ -112,7 +132,9 @@ class OpynFEC:
         elif totals:
             endpoint = f"{endpoint}/totals"
 
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def candidates(
         self,
@@ -120,6 +142,8 @@ class OpynFEC:
         totals: bool = False,
         by_office: bool = False,
         by_party: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
         **kwargs,
     ) -> List[dict]:
         """Fetch basic information about candidates, and use parameters to filter
@@ -189,10 +213,17 @@ class OpynFEC:
                 if by_party:
                     endpoint = f"{endpoint}/by_party"
 
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def committee(
-        self, committee_id: str, history: bool = False, **kwargs
+        self,
+        committee_id: str,
+        history: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
     ) -> List[dict]:
         endpoint = f"committee/{committee_id}"
         if history:
@@ -200,10 +231,17 @@ class OpynFEC:
             cycle = kwargs.pop("cycle", False)
             if cycle:
                 endpoint = f"{endpoint}/{cycle}"
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def committees(
-        self, candidate_id: Optional[str] = None, history: bool = False, **kwargs
+        self,
+        candidate_id: Optional[str] = None,
+        history: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
     ) -> List[dict]:
         if candidate_id is None:
             endpoint = "committees"
@@ -214,7 +252,9 @@ class OpynFEC:
                 cycle = kwargs.pop("cycle", False)
                 if cycle:
                     endpoint = f"{endpoint}/{cycle}"
-        return self._get_unpaginated_request(endpoint, **kwargs)
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
 
     def search(self, q: Union[str, List[str]], category: str) -> List[Dict[str, str]]:
         """Search for candidates or committees by name.
@@ -258,6 +298,9 @@ class OpynFEC:
         by_zip: bool = False,
         efile: bool = False,
         sub_id: Optional[str] = None,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
     ) -> List[dict]:
         endpoint = "schedules/schedule_a"
 
@@ -296,4 +339,6 @@ class OpynFEC:
         elif sub_id is not None:
             endpoint = f"{endpoint}/{sub_id}"
 
-        # TODO: Finish this up
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
