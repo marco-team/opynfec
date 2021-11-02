@@ -135,4 +135,4 @@ dmypy.json
 mytesting.py
 
 # Sample data
-sample_data/
+sample_data/*.json
