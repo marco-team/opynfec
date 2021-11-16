@@ -289,6 +289,64 @@ class OpynFEC:
             )
         return self._get_request(f"names/{category}", q=q)["results"]
 
+    def financial(
+        self,
+        committee_id: Optional[str],
+        reports: bool = False,
+        totals: bool = False,
+        elections: bool = False,
+        search: bool = False,
+        summary: bool = False,
+        entity_type: Optional[str] = None,
+        by_entity: bool = False,
+        call_limit: Optional[int] = None,
+        result_limit: Optional[int] = None,
+        **kwargs,
+    ):
+        if committee_id is not None and entity_type is not None:
+            raise ValueError(
+                "Only one of `committee_id` and `entity_type` can be not None"
+            )
+
+        if committee_id is not None:
+            endpoint = f"committee/{committee_id}/"
+            if reports == totals:
+                raise ValueError(
+                    "Must have exactly one of `reports` and `totals` for committee_id"
+                )
+            elif reports:
+                endpoint += "reports"
+            else:
+                endpoint += "totals"
+        elif elections:
+            endpoint = "elections"
+            if search:
+                endpoint += "/search"
+            elif summary:
+                endpoint += "/summary"
+        elif reports:
+            if entity_type is None:
+                raise ValueError(
+                    "Must define one of `committee_id` or `entity_type` for `reports`"
+                )
+            endpoint = f"reports/{entity_type}"
+        elif totals:
+            endpoint = "totals/"
+            if by_entity == entity_type is None:
+                raise ValueError(
+                    "Can only have one of `by_entity` or `entity_type` for `totals`"
+                )
+            elif by_entity:
+                endpoint += "by_entity"
+            else:
+                endpoint += entity_type
+        else:
+            raise ValueError("Improper arguments, could not determine an endpoint")
+
+        return self._get_unpaginated_request(
+            endpoint, call_limit=call_limit, result_limit=result_limit, **kwargs
+        )
+
     def receipts(
         self,
         by_employer: bool = False,
