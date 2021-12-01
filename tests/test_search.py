@@ -1,5 +1,5 @@
 import unittest
-from opynfec import OpynFEC
+from src.opynfec import OpynFEC
 
 
 class TestSearch(unittest.TestCase):
