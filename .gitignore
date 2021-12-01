@@ -131,8 +131,10 @@ dmypy.json
 # VS Code Project
 .vscode
 
-# My testing file
+# My testing files
 mytesting.py
+build_final_dataset.ipynb
 
-# Sample data
-sample_data/*.json
+# Collected data
+sample_data/
+final_dataset/
